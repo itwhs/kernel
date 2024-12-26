@@ -1,7 +1,7 @@
-From cb17fc4c3b4f281c49df03b8e946fd964c2bd900 Mon Sep 17 00:00:00 2001
+From 5bebdd36f56da96f08bad5ab34e39bffd3ef872b Mon Sep 17 00:00:00 2001
 From: xxxxx <67037522+xxxxx@users.noreply.github.com>
-Date: Sun, 23 Apr 2023 00:48:16 +0000
-Subject: [PATCH] Add text_offset
+Date: Thu, 7 Mar 2024 11:38:19 +0800
+Subject: [PATCH] arm64: Apply the text_offset patch
 
 ---
  arch/arm64/Makefile                       |  5 +++++
@@ -19,7 +19,7 @@ Subject: [PATCH] Add text_offset
  12 files changed, 35 insertions(+), 20 deletions(-)
 
 diff --git a/arch/arm64/Makefile b/arch/arm64/Makefile
-index 5e56d26a2..add165d2a 100644
+index c9496539c..c86cd9445 100644
 --- a/arch/arm64/Makefile
 +++ b/arch/arm64/Makefile
 @@ -11,6 +11,7 @@
@@ -96,7 +96,7 @@ index 2f361a883..fd925c914 100644
  
  CFLAGS_REMOVE_ftrace.o = $(CC_FLAGS_FTRACE)
 diff --git a/arch/arm64/kernel/head.S b/arch/arm64/kernel/head.S
-index 2196aad7b..cd5e09825 100644
+index cdbbc95eb..344282cde 100644
 --- a/arch/arm64/kernel/head.S
 +++ b/arch/arm64/kernel/head.S
 @@ -37,6 +37,8 @@
@@ -225,10 +225,10 @@ index 45131e354..329433fda 100644
  ASSERT(swapper_pg_dir - reserved_pg_dir == RESERVED_SWAPPER_OFFSET,
         "RESERVED_SWAPPER_OFFSET is wrong!")
 diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
-index 9a7c38965..1c57fbfb8 100644
+index 4b302dbf7..8632e111f 100644
 --- a/arch/arm64/mm/mmu.c
 +++ b/arch/arm64/mm/mmu.c
-@@ -50,9 +50,6 @@ u64 vabits_actual __ro_after_init = VA_BITS_MIN;
+@@ -52,9 +52,6 @@ u64 vabits_actual __ro_after_init = VA_BITS_MIN;
  EXPORT_SYMBOL(vabits_actual);
  #endif
  
@@ -239,10 +239,10 @@ index 9a7c38965..1c57fbfb8 100644
  EXPORT_SYMBOL(kimage_voffset);
  
 diff --git a/drivers/firmware/efi/libstub/Makefile b/drivers/firmware/efi/libstub/Makefile
-index ef5045a53..4e1275321 100644
+index 473ef1842..8693b17f6 100644
 --- a/drivers/firmware/efi/libstub/Makefile
 +++ b/drivers/firmware/efi/libstub/Makefile
-@@ -88,6 +88,7 @@ lib-$(CONFIG_RISCV)		+= riscv-stub.o
+@@ -89,6 +89,7 @@ lib-$(CONFIG_RISCV)		+= riscv-stub.o
  lib-$(CONFIG_LOONGARCH)		+= loongarch-stub.o
  
  CFLAGS_arm32-stub.o		:= -DTEXT_OFFSET=$(TEXT_OFFSET)
@@ -251,10 +251,10 @@ index ef5045a53..4e1275321 100644
  zboot-obj-$(CONFIG_RISCV)	:= lib-clz_ctz.o lib-ashldi3.o
  lib-$(CONFIG_EFI_ZBOOT)		+= zboot.o $(zboot-obj-y)
 diff --git a/drivers/firmware/efi/libstub/arm64-stub.c b/drivers/firmware/efi/libstub/arm64-stub.c
-index 42282c5c3..381b494bf 100644
+index 16f15e36f..bc68c9fdc 100644
 --- a/drivers/firmware/efi/libstub/arm64-stub.c
 +++ b/drivers/firmware/efi/libstub/arm64-stub.c
-@@ -149,7 +149,7 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
+@@ -172,7 +172,7 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
  
  	kernel_size = _edata - _text;
  	kernel_memsize = kernel_size + (_end - _edata);
@@ -263,16 +263,16 @@ index 42282c5c3..381b494bf 100644
  
  	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && phys_seed != 0) {
  		/*
-@@ -167,7 +167,7 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
+@@ -191,7 +191,7 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
  	if (status != EFI_SUCCESS) {
  		if (!check_image_region((u64)_text, kernel_memsize)) {
  			efi_err("FIRMWARE BUG: Image BSS overlaps adjacent EFI memory region\n");
--		} else if (IS_ALIGNED((u64)_text, min_kimg_align)) {
-+		} else if (IS_ALIGNED((u64)_text - TEXT_OFFSET, min_kimg_align)) {
+-		} else if (IS_ALIGNED((u64)_text, min_kimg_align) &&
++		} else if (IS_ALIGNED((u64)_text - TEXT_OFFSET, min_kimg_align) &&
+ 			   (u64)_end < EFI_ALLOC_LIMIT) {
  			/*
  			 * Just execute from wherever we were loaded by the
- 			 * UEFI PE/COFF loader if the alignment is suitable.
-@@ -187,7 +187,7 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
+@@ -213,7 +213,7 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
  		}
  	}
  
